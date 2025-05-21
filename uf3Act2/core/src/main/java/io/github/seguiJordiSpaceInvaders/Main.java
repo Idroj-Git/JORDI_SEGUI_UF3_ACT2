@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -20,9 +21,13 @@ public class Main extends ApplicationAdapter {
     Texture hiScoreTexture;
     Texture playerTexture;
     Texture shotTexture;
+    Texture enemy1Texture;
     Sprite playerSprite;
     Array<Sprite> shootSprites;
-
+    Array<Sprite> enemySprites;
+    Rectangle playerRectangle;
+    Rectangle shotRectangle;
+    Rectangle enemyRectangle;
     Vector2 touchPos;
     float playerTargetX;
     float playerHealth;
@@ -30,6 +35,8 @@ public class Main extends ApplicationAdapter {
     float moveSpeed;
     float shotSpeed;
     float shootCooldown;
+    int highScore;
+    int enemyScoreAmount;
 
     boolean isTimePaused;
 
@@ -39,6 +46,7 @@ public class Main extends ApplicationAdapter {
         playerTexture = new Texture("player.png");
         shotTexture = new Texture("shot.png");
         spriteBatch = new SpriteBatch();
+        enemy1Texture = new Texture("enemy1.png");
 
         viewport = new FitViewport(8, 10);
         //resize(480, 640);
@@ -48,16 +56,27 @@ public class Main extends ApplicationAdapter {
         playerSprite.setPosition((viewport.getWorldWidth() - playerSprite.getWidth()) / 2f, 0); // Centre = 3.5f, 4.5f
 
         shootSprites = new Array<>();
+        enemySprites = new Array<>();
+
         touchPos = new Vector2();
         playerTargetX = playerSprite.getX();
 
+        playerRectangle = new Rectangle();
+        shotRectangle = new Rectangle();
+        enemyRectangle = new Rectangle();
         moveSpeed = 4f;
         shotSpeed = 6f;
         isTimePaused = false;
         shootCooldown = 0;
+        highScore = 0;
+        enemyScoreAmount = 500;
 
         playerMaxHealth = 3;
         playerHealth = playerMaxHealth;
+
+
+
+        StartGame();
     }
 
     @Override
@@ -95,6 +114,7 @@ public class Main extends ApplicationAdapter {
         float playerHeight = playerSprite.getHeight();
 
         playerSprite.setX(MathUtils.clamp(playerSprite.getX(), 0, worldWidth - playerWidth));
+        playerRectangle.set(playerSprite.getX(), playerSprite.getY(), playerWidth, playerHeight);
 
         shootCooldown+= delta;
         if (Gdx.input.isTouched()){
@@ -119,16 +139,31 @@ public class Main extends ApplicationAdapter {
             Sprite shotSprite = shootSprites.get(i);
             float shotWidth = shotSprite.getWidth();
             float shotHeight = shotSprite.getHeight();
-            // shotRectangle.set(shotSprite.getX(),shotSprite.getY(), shotWidth, shotHeight);
+            shotRectangle.set(shotSprite.getX(),shotSprite.getY(), shotWidth, shotHeight);
+
             shotSprite.translateY(shotSpeed*delta);
             if (shotSprite.getY() > viewport.getWorldHeight()) shootSprites.removeIndex(i);
             // else if (shotRectangle.overlaps(enemyRectangle))
+            for (int z = enemySprites.size -1; z >= 0; z--){
+                enemyRectangle.set(enemySprites.get(z).getX(), enemySprites.get(z).getY(), enemySprites.get(z).getWidth(), enemySprites.get(z).getHeight());
+                if (shotRectangle.overlaps(enemyRectangle)){
+                    // ENEMY HIT
+                    shootSprites.removeIndex(i);
+                    enemySprites.removeIndex(z);
+                    highScore += enemyScoreAmount;
+                    if (enemySprites.size <= 0){
+                        // SEGÜENT FASE
+                    }
+                    return; // Acaba de comprovar el for.
+                }
+            }
         }
     }
 
     // Spawnea tots els enemics i reseteja les vides / puntuació
     private void StartGame(){
-
+        playerHealth = playerMaxHealth;
+        SpawnEnemyWave(new Array<Vector2>(new Vector2[]{new Vector2(1,6), new Vector2(2, 6), new Vector2(3, 6)}));
     }
 
     private void Shoot(){
@@ -143,6 +178,30 @@ public class Main extends ApplicationAdapter {
         shotSprite.setY(playerSprite.getY() + playerSprite.getHeight());
         shootSprites.add(shotSprite);
     }
+
+    private void SpawnEnemyWave(Array<Vector2> positions){
+        int enemyAmount = positions.size -1;
+
+        for (Vector2 position : positions){
+            SpawnEnemy(position);
+        }
+    }
+
+    private void SpawnEnemy(Vector2 position){
+        float enemyWidth = 1f;
+        float enemyHeight = 1f;
+        float worldWidth = viewport.getWorldWidth();
+        float worldHeight = viewport.getWorldHeight();
+
+        Sprite enemySprite = new Sprite(enemy1Texture);
+        enemySprite.setSize(enemyWidth, enemyHeight);
+        enemySprite.setPosition(position.x, position.y);
+        enemySprites.add(enemySprite);
+    }
+
+
+
+
     private void draw(){
         ScreenUtils.clear(Color.BLACK);
         viewport.apply();
@@ -156,6 +215,11 @@ public class Main extends ApplicationAdapter {
         for (Sprite shotSprite : shootSprites) {
             shotSprite.draw(spriteBatch);
         }
+        spriteBatch.setColor(Color.RED); // NO FUNCIONA PERQUE EL IMG ES NEGRE CANVIAR A BLANC!
+        for (Sprite enemySprite : enemySprites){
+            enemySprite.draw(spriteBatch);
+        }
+        spriteBatch.setColor(Color.WHITE);
         spriteBatch.end();
     }
 
